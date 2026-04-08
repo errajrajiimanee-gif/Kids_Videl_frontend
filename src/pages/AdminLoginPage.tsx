@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../services/api';
+import { adminApi } from '../services/adminApi';
 import { setAdminToken } from '../services/adminAuth';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -17,7 +17,7 @@ export default function AdminLoginPage() {
     setError(null);
     setSubmitting(true);
     try {
-      const res = await api.post('/auth/admin/login', { username, password });
+      const res = await adminApi.post('/auth/admin/login', { username, password });
       setAdminToken({ token: res.data.token, expiresAt: res.data.expiresAt });
       navigate('/admin', { replace: true });
     } catch (err: any) {
