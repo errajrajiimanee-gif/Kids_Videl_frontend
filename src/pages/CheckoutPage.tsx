@@ -9,6 +9,7 @@ export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCartStore();
   const [shippingCost, setShippingCost] = useState(20);
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'card'>('cod');
+  const isCardPaymentComingSoon = true;
   const [cardInfo, setCardInfo] = useState({
     number: '',
     expiry: '',
@@ -351,8 +352,12 @@ export default function CheckoutPage() {
 
               {/* Card Option */}
               <div 
-                className={`border rounded-xl p-4 cursor-pointer transition-all ${paymentMethod === 'card' ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-gray-200 hover:border-gray-300'}`}
-                onClick={() => setPaymentMethod('card')}
+                className={`border rounded-xl p-4 transition-all ${isCardPaymentComingSoon ? 'border-gray-200 bg-gray-50/70 opacity-70 cursor-not-allowed' : paymentMethod === 'card' ? 'border-primary bg-primary/5 ring-1 ring-primary cursor-pointer' : 'border-gray-200 hover:border-gray-300 cursor-pointer'}`}
+                onClick={() => {
+                  if (isCardPaymentComingSoon) return;
+                  setPaymentMethod('card');
+                }}
+                aria-disabled={isCardPaymentComingSoon}
               >
                 <div className="flex justify-between items-center mb-0">
                   <div className="flex items-center gap-3">
@@ -361,7 +366,12 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex items-center gap-2 font-bold text-gray-900">
                       <CreditCard className="w-5 h-5 text-gray-500" />
-                      Carte bancaire
+                      Carte bancaire (Blu)
+                      {isCardPaymentComingSoon ? (
+                        <span className="ml-2 text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
+                          Bientôt disponible
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex gap-2 items-center">
@@ -370,7 +380,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                {paymentMethod === 'card' && (
+                {!isCardPaymentComingSoon && paymentMethod === 'card' && (
                   <div className="mt-6 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300" onClick={(e) => e.stopPropagation()}>
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-1">
