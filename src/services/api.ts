@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { clearCustomerToken, getCustomerToken } from './customerAuth';
 
+const baseURL = import.meta.env.PROD
+  ? '/api'
+  : import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000'
+  baseURL
 });
 
 api.interceptors.request.use((config) => {

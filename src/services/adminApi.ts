@@ -1,8 +1,12 @@
 import axios from 'axios';
 import { clearAdminToken, getAdminToken } from './adminAuth';
 
+const baseURL = import.meta.env.PROD
+  ? '/api'
+  : import.meta.env.VITE_ADMIN_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 export const adminApi = axios.create({
-  baseURL: import.meta.env.VITE_ADMIN_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:3000',
+  baseURL,
 });
 
 adminApi.interceptors.request.use((config) => {
@@ -27,4 +31,3 @@ adminApi.interceptors.response.use(
     return Promise.reject(error);
   }
 );
-
