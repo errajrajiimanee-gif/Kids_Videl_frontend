@@ -205,7 +205,7 @@ export default function HomePage() {
         <div className="grid md:grid-cols-2 gap-6">
           {/* Help Banner */}
           <a 
-            href="https://wa.me/212600000000" 
+            href="https://wa.me/212666011062" 
             target="_blank" 
             rel="noopener noreferrer"
             className="relative overflow-hidden bg-gradient-to-r from-sky-100 to-blue-50 rounded-[2rem] p-8 flex items-center justify-between group cursor-pointer hover:shadow-lg transition-all border border-blue-100"
@@ -334,7 +334,7 @@ export default function HomePage() {
       )}
 
       <a
-        href="https://wa.me/212600000000"
+        href="https://wa.me/212666011062"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 w-14 h-14 bg-[#25D366] text-white rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition-transform z-50"

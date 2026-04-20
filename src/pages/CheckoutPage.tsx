@@ -5,6 +5,18 @@ import { formatMAD } from '../utils/format';
 import { CheckCircle2, MessageCircle, Mail, Home, ArrowRight, Sparkles, CreditCard, Wallet, Lock, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+const normalizeMoroccanPhone = (value: string): string | null => {
+  const raw = value.trim().replace(/[^\d+]/g, '');
+  let normalized = raw;
+
+  if (normalized.startsWith('00')) normalized = `+${normalized.slice(2)}`;
+  if (/^0\d{9}$/.test(normalized)) normalized = `+212${normalized.slice(1)}`;
+  if (/^212\d{9}$/.test(normalized)) normalized = `+${normalized}`;
+
+  if (!/^\+212[5-7]\d{8}$/.test(normalized)) return null;
+  return normalized;
+};
+
 export default function CheckoutPage() {
   const { items, totalPrice, clearCart } = useCartStore();
   const [shippingCost, setShippingCost] = useState(20);
@@ -50,7 +62,7 @@ export default function CheckoutPage() {
     const lastName = form.lastName.trim();
     const address = form.address.trim();
     const city = form.city.trim();
-    const phone = form.phone.trim();
+    const phoneInput = form.phone.trim();
 
     if (!email) nextErrors.email = 'Email obligatoire';
     else if (!email.includes('@')) nextErrors.email = 'Email invalide';
@@ -58,7 +70,9 @@ export default function CheckoutPage() {
     if (!lastName) nextErrors.lastName = 'Nom obligatoire';
     if (!address) nextErrors.address = 'Adresse obligatoire';
     if (!city) nextErrors.city = 'Ville obligatoire';
-    if (!phone) nextErrors.phone = 'Téléphone obligatoire';
+    if (!phoneInput) nextErrors.phone = 'Téléphone obligatoire';
+    const normalizedPhone = phoneInput ? normalizeMoroccanPhone(phoneInput) : null;
+    if (phoneInput && !normalizedPhone) nextErrors.phone = 'Format invalide. Utilisez +212XXXXXXXXX';
 
     if (paymentMethod === 'card') {
       if (!cardInfo.number) nextErrors.cardNumber = 'Numéro de carte obligatoire';
@@ -81,7 +95,7 @@ export default function CheckoutPage() {
           apartment: form.apartment.trim() || undefined,
           postalCode: form.postalCode.trim() || undefined,
           city,
-          phone,
+          phone: normalizedPhone as string,
         },
         items: items.map(i => ({
           productId: i.id,
@@ -147,7 +161,7 @@ export default function CheckoutPage() {
                   <div>
                     <p className="text-sm font-black text-gray-900">Appel de confirmation</p>
                     <p className="text-xs text-gray-500 font-medium mt-0.5">
-                      Un conseiller Videl Kids va vous appeler au <span className="text-primary font-bold">{form.phone}</span> pour valider votre commande avant l'expédition.
+                      Un conseiller Videl Kids va vous appeler au <span className="text-primary font-bold">{normalizeMoroccanPhone(form.phone) || form.phone}</span> pour valider votre commande avant l'expédition.
                     </p>
                   </div>
                 </div>
@@ -284,6 +298,11 @@ export default function CheckoutPage() {
               className={`w-full border rounded-md py-3 px-4 focus:ring-2 focus:ring-primary outline-none ${errors.phone ? 'border-red-500' : 'border-gray-300'}`}
             />
             {errors.phone ? <div className="text-sm text-red-600 font-bold">{errors.phone}</div> : null}
+            {!errors.phone && form.phone.trim() ? (
+              <div className="text-xs text-gray-500">
+                Format attendu: +212XXXXXXXXX
+              </div>
+            ) : null}
           </div>
 
           {/* Shipping Method */}

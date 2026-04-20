@@ -14,6 +14,13 @@ export default function RegisterPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const googleClientId =
+    import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+    '949464706197-5afglq40oqf3erm1u7jb8i2iissi9qhm.apps.googleusercontent.com';
+  const googleRedirectUri =
+    import.meta.env.VITE_GOOGLE_REDIRECT_URI ||
+    `${window.location.origin}/auth/google/callback`;
+
   return (
     <main className="container py-20 min-h-[70vh] flex items-center justify-center">
       <div className="max-w-md w-full bg-white border border-gray-100 rounded-[2.5rem] p-8 md:p-12 shadow-xl shadow-black/5">
@@ -112,11 +119,8 @@ export default function RegisterPage() {
             type="button"
             className="w-full bg-white border border-gray-200 text-gray-700 font-bold rounded-2xl py-3.5 flex items-center justify-center gap-3 hover:bg-gray-50 transition-all shadow-sm"
             onClick={() => {
-              const root = window.location.origin;
-              const clientId = "949464706197-5afglq40oqf3erm1u7jb8i2iissi9qhm.apps.googleusercontent.com";
-              const redirectUri = `${root}/auth/google/callback`;
               const scope = "email profile";
-              const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&include_granted_scopes=true&state=standard_register`;
+              const url = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&redirect_uri=${encodeURIComponent(googleRedirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}&include_granted_scopes=true&state=standard_register`;
               window.location.assign(url);
             }}
           >
