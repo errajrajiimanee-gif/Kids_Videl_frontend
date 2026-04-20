@@ -16,15 +16,82 @@ interface LoyaltyMember { id: number; firstName: string; lastName: string; email
 
 // Components
 function ImageUpload({ image, onImageChange }: { image: string, onImageChange: (file: string) => void }) {
+  const [error, setError] = useState<string | null>(null);
+
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        onImageChange(reader.result as string);
+    if (!file) return;
+
+    const readAsDataUrl = (blob: Blob) =>
+      new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('Lecture de fichier impossible'));
+        reader.readAsDataURL(blob);
+      });
+
+    const estimateBytesFromDataUrl = (dataUrl: string) => {
+      const idx = dataUrl.indexOf(',');
+      const base64 = idx >= 0 ? dataUrl.slice(idx + 1) : dataUrl;
+      const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
+      return Math.floor((base64.length * 3) / 4) - padding;
+    };
+
+    const maxDataUrlLength = 190_000;
+    const maxBytes = 130_000;
+    const maxWidth = 1400;
+
+    const compress = async () => {
+      setError(null);
+      const inputUrl = await readAsDataUrl(file);
+      const img = new Image();
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Image invalide'));
+        img.src = inputUrl;
+      });
+
+      const drawToCanvas = (w: number, h: number) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) throw new Error('Canvas non supporté');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        return canvas;
       };
-      reader.readAsDataURL(file);
-    }
+
+      let currentMaxW = maxWidth;
+      let best: string | null = null;
+
+      for (let attempt = 0; attempt < 8; attempt++) {
+        const scale = Math.min(1, currentMaxW / img.width);
+        const targetW = Math.max(1, Math.round(img.width * scale));
+        const targetH = Math.max(1, Math.round(img.height * scale));
+        const canvas = drawToCanvas(targetW, targetH);
+
+        let q = 0.82;
+        for (let i = 0; i < 6; i++) {
+          const out = canvas.toDataURL('image/jpeg', q);
+          best = out;
+          if (out.length <= maxDataUrlLength && estimateBytesFromDataUrl(out) <= maxBytes) {
+            onImageChange(out);
+            return;
+          }
+          q = Math.max(0.45, q - 0.07);
+        }
+
+        currentMaxW = Math.max(320, Math.round(currentMaxW * 0.85));
+      }
+
+      if (best) onImageChange(best);
+      setError('Image trop lourde. Utilisez une image plus petite ou une URL.');
+    };
+
+    compress().catch((e) => setError(e instanceof Error ? e.message : 'Erreur image'));
   }, [onImageChange]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -34,31 +101,34 @@ function ImageUpload({ image, onImageChange }: { image: string, onImageChange: (
   });
 
   return (
-    <div 
-      {...getRootProps()} 
-      className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
-        isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary hover:bg-gray-50'
-      }`}
-    >
-      <input {...getInputProps()} />
-      {image ? (
-        <div className="relative group">
-          <img src={image} alt="Preview" className="mx-auto h-48 object-contain rounded-lg" />
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-            <p className="text-white font-bold">Changer l'image</p>
+    <div className="space-y-2">
+      <div 
+        {...getRootProps()} 
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${
+          isDragActive ? 'border-primary bg-primary/5' : 'border-gray-300 hover:border-primary hover:bg-gray-50'
+        }`}
+      >
+        <input {...getInputProps()} />
+        {image ? (
+          <div className="relative group">
+            <img src={image} alt="Preview" className="mx-auto h-48 object-contain rounded-lg" />
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+              <p className="text-white font-bold">Changer l'image</p>
+            </div>
           </div>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
-            <Upload className="w-8 h-8 text-gray-400" />
+        ) : (
+          <div className="space-y-4">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+              <Upload className="w-8 h-8 text-gray-400" />
+            </div>
+            <div>
+              <p className="font-medium text-gray-700">Glissez une image ici ou cliquez pour sélectionner</p>
+              <p className="text-sm text-gray-500 mt-1">PNG, JPG jusqu'à 5MB</p>
+            </div>
           </div>
-          <div>
-            <p className="font-medium text-gray-700">Glissez une image ici ou cliquez pour sélectionner</p>
-            <p className="text-sm text-gray-500 mt-1">PNG, JPG jusqu'à 5MB</p>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
+      {error ? <div className="text-xs text-red-600 font-bold">{error}</div> : null}
     </div>
   );
 }
@@ -287,6 +357,8 @@ function AdminCategories() {
   const [isCategoryImageModalOpen, setIsCategoryImageModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [categoryImage, setCategoryImage] = useState('');
+  const [categoryImageError, setCategoryImageError] = useState<string | null>(null);
+  const [savingCategoryImage, setSavingCategoryImage] = useState(false);
   const [isSubCategoryModalOpen, setIsSubCategoryModalOpen] = useState(false);
   const [editingSubCategory, setEditingSubCategory] = useState<{ categoryId: number; subCategory: SubCategory } | null>(null);
   const [subCategoryForm, setSubCategoryForm] = useState({ name: '', image: '' });
@@ -339,17 +411,29 @@ function AdminCategories() {
   const openCategoryImageModal = (category: Category) => {
     setEditingCategory(category);
     setCategoryImage(category.image || '');
+    setCategoryImageError(null);
     setIsCategoryImageModalOpen(true);
   };
 
   const saveCategoryImage = async () => {
     if (!editingCategory) return;
     try {
+      setSavingCategoryImage(true);
+      setCategoryImageError(null);
+      if (categoryImage.trim().startsWith('data:image') && categoryImage.length > 190_000) {
+        setCategoryImageError('Image trop lourde. Choisissez une image plus petite ou une URL.');
+        return;
+      }
       await adminApi.put(`/categories/${editingCategory.id}`, { image: categoryImage });
       setIsCategoryImageModalOpen(false);
       setEditingCategory(null);
       fetchCategories();
-    } catch (err) { console.error('Failed to update category image', err); }
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || 'Échec mise à jour image';
+      setCategoryImageError(Array.isArray(message) ? message.join(', ') : String(message));
+    } finally {
+      setSavingCategoryImage(false);
+    }
   };
 
   const openSubCategoryModal = (categoryId: number, subCategory: SubCategory) => {
@@ -454,9 +538,44 @@ function AdminCategories() {
             </div>
             <div className="p-6 space-y-6">
               <ImageUpload image={categoryImage} onImageChange={setCategoryImage} />
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { label: 'Parapharmacie', src: '/parapharmacie.png' },
+                  { label: 'Pour elle', src: '/pourelle.png' },
+                  { label: 'Vêtements', src: '/vetement.png' },
+                  { label: 'Jouets', src: '/jouets.png' },
+                  { label: 'Livres', src: '/livres.png' },
+                  { label: 'Hygiène', src: '/hygiene.png' },
+                  { label: 'Repas', src: '/repas.png' },
+                  { label: 'Sorties', src: '/sortie.png' },
+                  { label: 'École', src: '/ecole.png' },
+                ].map((p) => (
+                  <button
+                    key={p.src}
+                    type="button"
+                    onClick={() => setCategoryImage(p.src)}
+                    className={`border rounded-xl overflow-hidden text-left hover:border-primary transition-colors ${
+                      categoryImage === p.src ? 'border-primary ring-1 ring-primary' : 'border-gray-200'
+                    }`}
+                  >
+                    <div className="aspect-[3/1] bg-gray-100">
+                      <img src={p.src} alt={p.label} className="w-full h-full object-cover" />
+                    </div>
+                    <div className="px-3 py-2 text-xs font-bold text-gray-700">{p.label}</div>
+                  </button>
+                ))}
+              </div>
+              {categoryImageError ? <div className="text-sm text-red-600 font-bold">{categoryImageError}</div> : null}
               <div className="flex justify-end pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => { setIsCategoryImageModalOpen(false); setEditingCategory(null); }} className="px-6 py-2.5 font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg mr-4 transition-colors">Annuler</button>
-                <button type="button" onClick={saveCategoryImage} className="px-8 py-2.5 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2"><Check className="w-5 h-5" /> Enregistrer</button>
+                <button
+                  type="button"
+                  onClick={saveCategoryImage}
+                  disabled={savingCategoryImage}
+                  className="px-8 py-2.5 bg-primary text-white font-bold rounded-lg hover:opacity-90 transition-all shadow-lg shadow-primary/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Check className="w-5 h-5" /> {savingCategoryImage ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
               </div>
             </div>
           </div>
